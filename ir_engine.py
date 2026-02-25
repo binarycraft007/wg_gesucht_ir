@@ -37,9 +37,7 @@ class IREngine:
         self.documents = []
         self.lemmatizer = WordNetLemmatizer()
         self.stop_words = set(stopwords.words("english"))
-        self.learned_phrases = set()
 
-        # Models
         self.vectorizer = TfidfVectorizer(max_df=0.85, min_df=2)
         self.tfidf_matrix = None
         self.bm25_model = None
@@ -62,34 +60,6 @@ class IREngine:
         ]
         return " ".join(filtered_tokens)
 
-    def learn_phrases(self, tokenized_docs, top_n=200, min_freq=5):
-        """Dynamically learns important multi-word phrases (collocations) from the dataset."""
-        print(f"Learning top {top_n} multi-word phrases dynamically...")
-        finder = BigramCollocationFinder.from_documents(tokenized_docs)
-        finder.apply_freq_filter(min_freq)
-        bigram_measures = BigramAssocMeasures()
-        # Use likelihood ratio to find strongly associated word pairs
-        top_phrases = finder.nbest(bigram_measures.likelihood_ratio, top_n)
-        self.learned_phrases = set(top_phrases)
-
-    def apply_phrases(self, tokens):
-        """Replaces learned multi-word phrases in token list with a single joined token."""
-        if not self.learned_phrases:
-            return tokens
-
-        result = []
-        i = 0
-        n = len(tokens)
-        while i < n:
-            if i < n - 1 and (tokens[i], tokens[i + 1]) in self.learned_phrases:
-                # Combine the phrase with an underscore
-                result.append(f"{tokens[i]}_{tokens[i+1]}")
-                i += 2
-            else:
-                result.append(tokens[i])
-                i += 1
-        return result
-
     def load_and_index(self):
         print(f"Loading data from {self.data_path}...")
         with open(self.data_path, "r", encoding="utf-8") as f:
@@ -97,30 +67,12 @@ class IREngine:
 
         self.documents = raw_data
 
-        corpus = []
-        tokenized_corpus_for_bm25 = []
-        raw_tokenized_corpus = []
+        corpus: list[str] = []
 
         print(f"Preprocessing {len(self.documents)} documents...")
         for doc in self.documents:
             title = doc.get("title", "")
             district = doc.get("district", "")
-
-            raw_text = " ".join(
-                filter(
-                    None,
-                    [
-                        title,
-                        title,
-                        title,
-                        district,
-                        district,
-                        doc.get("property_description", ""),
-                        doc.get("area_description", ""),
-                        doc.get("other_description", ""),
-                    ],
-                )
-            )
 
             doc["_raw_content"] = " ".join(
                 filter(
@@ -129,27 +81,19 @@ class IREngine:
                         title,
                         doc.get("property_description", ""),
                         doc.get("area_description", ""),
+                        doc.get("other_description", ""),
                     ],
                 )
             )
 
-            processed_text = self.preprocess_text(raw_text)
-            raw_tokenized_corpus.append(processed_text.split())
-
-        # Dynamically learn phrases
-        self.learn_phrases(raw_tokenized_corpus, top_n=200, min_freq=5)
-
-        # Apply learned phrases
-        for i, doc in enumerate(self.documents):
-            phrased_tokens = self.apply_phrases(raw_tokenized_corpus[i])
-            corpus.append(" ".join(phrased_tokens))
-            tokenized_corpus_for_bm25.append(phrased_tokens)
+            processed_text = self.preprocess_text(doc["_raw_content"])
+            corpus.append(processed_text)
 
         print("Building TF-IDF Index...")
         self.tfidf_matrix = self.vectorizer.fit_transform(corpus)
 
         print("Building BM25 Index...")
-        self.bm25_model = BM25Okapi(tokenized_corpus_for_bm25)
+        self.bm25_model = BM25Okapi([doc.split() for doc in corpus])
         print("Indexing Complete!")
 
     def generate_snippet(self, text, query_terms, snippet_length=200):
@@ -185,12 +129,8 @@ class IREngine:
 
     def search(self, query, model="tfidf", top_k=10):
         # Preprocess the query to match indexed terms
-        processed_query_terms = self.preprocess_text(query).split()
-
-        # Apply learned multi-word phrases
-        processed_query_terms = self.apply_phrases(processed_query_terms)
-
-        processed_query = " ".join(processed_query_terms)
+        processed_query: list[str] = self.preprocess_text(query)
+        processed_query_terms: list[list[str]] = processed_query.split()
 
         # Extract raw query terms for highlighting
         raw_query_terms = re.findall(r"\w+", query) + processed_query_terms

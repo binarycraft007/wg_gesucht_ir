@@ -29,66 +29,35 @@ def calculate_recall(retrieved_docs, relevant_docs):
     return len(relevant_retrieved) / len(relevant_docs)
 
 
-def calculate_mrr(retrieved_docs, relevant_docs):
-    """Calculates Mean Reciprocal Rank (MRR)"""
-    for rank, doc in enumerate(retrieved_docs, 1):
-        if doc["offer_id"] in relevant_docs:
-            return 1.0 / rank
-    return 0.0
-
-
-def calculate_average_precision(retrieved_docs, relevant_docs):
-    """Calculates Average Precision for MAP"""
-    if not relevant_docs:
-        return 0.0
-    hit_count = 0
-    sum_precisions = 0.0
-    for rank, doc in enumerate(retrieved_docs, 1):
-        if doc["offer_id"] in relevant_docs:
-            hit_count += 1
-            sum_precisions += hit_count / rank
-    return sum_precisions / len(relevant_docs)
-
-
 def evaluate_model(engine, model_name, queries, k=5):
-    print(f"\\n--- Evaluating Model: {model_name.upper()} ---")
+    print(f"\n--- Evaluating Model: {model_name.upper()} ---")
 
     total_p_at_k = 0
     total_recall = 0
-    total_mrr = 0
-    total_ap = 0
 
     for query, relevant_docs in queries.items():
         results = engine.search(query, model=model_name, top_k=20)
 
         p_at_k = calculate_precision_at_k(results, relevant_docs, k)
         recall = calculate_recall(results, relevant_docs)
-        mrr = calculate_mrr(results, relevant_docs)
-        ap = calculate_average_precision(results, relevant_docs)
 
         total_p_at_k += p_at_k
         total_recall += recall
-        total_mrr += mrr
-        total_ap += ap
 
     avg_p_at_k = total_p_at_k / len(queries)
     avg_recall = total_recall / len(queries)
-    avg_mrr = total_mrr / len(queries)
-    map_score = total_ap / len(queries)
 
     print("-" * 40)
     print(f"Average P@{k}: {avg_p_at_k:.3f}")
     print(f"Average Recall: {avg_recall:.3f}")
-    print(f"Mean Reciprocal Rank (MRR): {avg_mrr:.3f}")
-    print(f"Mean Average Precision (MAP): {map_score:.3f}")
-    return avg_p_at_k, avg_recall, avg_mrr, map_score
+    return avg_p_at_k, avg_recall
 
 
 if __name__ == "__main__":
     print("Loading Data & Initializing Indices...")
     engine = IREngine("dataset_en.json")
 
-    print("\\nStarting Evaluation against mock Ground Truth (QRELS)...")
+    print("\nStarting Evaluation against mock Ground Truth (QRELS)...")
 
     # Evaluate TF-IDF
     evaluate_model(engine, model_name="tfidf", queries=QRELS, k=3)
