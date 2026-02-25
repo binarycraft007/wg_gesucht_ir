@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WG-Gesucht Information Retrieval</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .search-container { max-width: 800px; margin: 40px auto; text-align: center; }
+        .results-container { max-width: 800px; margin: 0 auto; padding-bottom: 50px; }
+        .result-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; transition: transform 0.2s; }
+        .result-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .result-title { color: #1a0dab; text-decoration: none; font-size: 1.25rem; font-weight: 500; }
+        .result-title:hover { text-decoration: underline; }
+        .result-meta { color: #5f6368; font-size: 0.9rem; margin-bottom: 10px; }
+        .result-snippet { font-size: 0.95rem; color: #4d5156; line-height: 1.5; }
+        mark { background-color: #ffe066; padding: 0.1em 0.2em; border-radius: 3px; font-weight: bold; }
+        .badge-district { background-color: #e9ecef; color: #495057; }
+        .score-badge { font-size: 0.8rem; background-color: #e1f5fe; color: #0288d1; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Search Header -->
+        <div class="search-container">
+            <a href="/" class="text-decoration-none">
+                <h1 class="mb-4 text-primary fw-bold">WG-Gesucht Search</h1>
+            </a>
+            <form action="/search" method="GET">
+                <div class="input-group input-group-lg shadow-sm mb-3">
+                    <input type="text" name="q" class="form-control" placeholder="e.g., quiet room with balcony in Mitte..." value="{{ query|default('') }}" required>
+                    <button class="btn btn-primary px-4" type="submit">Search</button>
+                </div>
+
+                <!-- Model Selection (Bonus Requirement) -->
+                <div class="d-flex justify-content-center align-items-center flex-wrap gap-4 text-muted mt-3">
+                    <div>
+                        <span class="fw-medium me-2">Retrieval Model:</span>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="model" id="tfidfModel" value="tfidf" {% if model == 'tfidf' or not model %}checked{% endif %}>
+                            <label class="form-check-label" for="tfidfModel">TF-IDF (Cosine)</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="model" id="bm25Model" value="bm25" {% if model == 'bm25' %}checked{% endif %}>
+                            <label class="form-check-label" for="bm25Model">BM25 (Probabilistic)</label>
+                        </div>
+                    </div>
+
+                    <div class="vr mx-2 d-none d-md-block"></div>
+                </div>
+            </form>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger text-center">{{ error }}</div>
+        {% endif %}
+
+        <!-- Search Results -->
+        <div class="results-container">
+            {% if query %}
+                <p class="text-muted mb-4 border-bottom pb-2">
+                    Found <strong>{{ result_count }}</strong> results for "{{ query }}"
+                    <span class="float-end">Ranked via <strong>{{ model|upper }}</strong></span>
+                </p>
+
+                {% if result_count == 0 %}
+                    <div class="text-center mt-5">
+                        <h4 class="text-muted">No matching apartments found.</h4>
+                        <p>Try different keywords or removing some constraints.</p>
+                    </div>
+                {% else %}
+                    {% for result in results %}
+                        <div class="result-card border">
+                            <!-- Title & URL Mockup -->
+                            <a href="https://www.wg-gesucht.de/{{ result.offer_id }}.html" target="_blank" class="result-title d-block mb-1">
+                                {{ result.title }}
+                            </a>
+
+                            <!-- Metadata -->
+                            <div class="result-meta d-flex align-items-center flex-wrap gap-2">
+                                <span class="badge badge-district">{{ result.district }}</span>
+                                <span>• <strong>{{ result.rent }} €</strong></span>
+                                <span>• {{ result.size }} m²</span>
+                                <span>• Available: {{ result.available_from }}</span>
+                                <span class="badge score-badge ms-auto">Score: {{ result.score }}</span>
+                            </div>
+
+                            <!-- Snippet (Raw HTML generated by backend with <mark>) -->
+                            <div class="result-snippet">
+                                {{ result.snippet | safe }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+</body>
+</html>
