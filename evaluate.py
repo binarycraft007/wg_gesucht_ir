@@ -4,12 +4,12 @@ from ir_engine import IREngine
 
 # A small set of sample queries and their known relevant document IDs (Ground Truth)
 QRELS = {
-    "quiet room with balcony": [13104668, 12165369, 13046592],
+    "quite room with registration": [13071992, 11523040, 11459519],
     "central apartment charlottenburg": [3945147],
     "sublet in neukölln": [10777111, 13120841],
-    "prenzlauer berg women only": [8644104],
+    "prenzlauer berg women only": [13115776],
     "maisonette neukölln": [13120841],
-    "furnished short term mitte": [12474703],
+    "furnished short term mitte": [11250925, 12080375],
 }
 
 
